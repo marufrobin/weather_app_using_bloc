@@ -84,7 +84,6 @@ class _WeatherScreenState extends State<WeatherScreen> {
                               ),
                               const SizedBox(height: 16),
                               Icon(
-                                // currentSky == 'Clouds' || currentSky == 'Rain'
                                 data.currentSky == 'Clouds' ||
                                         data.currentSky == 'Rain'
                                     ? Icons.cloud
@@ -118,7 +117,6 @@ class _WeatherScreenState extends State<WeatherScreen> {
                       final hourlyForecast = data.hourlyForecast;
 
                       return HourlyForecastItem(
-                        // time: DateFormat.j().format(time),
                         time: DateFormat.j().format(
                           hourlyForecast.elementAt(index).time,
                         ),
