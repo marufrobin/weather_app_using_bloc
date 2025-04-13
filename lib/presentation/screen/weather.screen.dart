@@ -76,7 +76,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                           child: Column(
                             children: [
                               Text(
-                                '${data.currentTemp} K',
+                                '${(data.currentTemp - 273.15).toStringAsFixed(1)}°C',
                                 style: const TextStyle(
                                   fontSize: 32,
                                   fontWeight: FontWeight.bold,
@@ -120,11 +120,11 @@ class _WeatherScreenState extends State<WeatherScreen> {
                         time: DateFormat.j().format(
                           hourlyForecast.elementAt(index).time,
                         ),
-                        temperature:
-                            hourlyForecast
-                                .elementAt(index)
-                                .temperature
-                                .toString(),
+                        temperature: (hourlyForecast
+                                    .elementAt(index)
+                                    .temperature -
+                                273.15)
+                            .toStringAsFixed(1),
                         icon:
                             hourlyForecast.elementAt(index).sky == 'Clouds' ||
                                     hourlyForecast.elementAt(index).sky ==
