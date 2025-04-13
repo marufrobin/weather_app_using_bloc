@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:weather_app_using_bloc/bloc/weather_bloc.dart';
 import 'package:weather_app_using_bloc/secrets.dart';
 import 'package:http/http.dart' as http;
 
-import 'additional_info_item.dart';
-import 'hourly_forcast_item.dart';
+import '../widgets/additional_info_item.dart';
+import '../widgets/hourly_forcast_item.dart';
 
 class WeatherScreen extends StatefulWidget {
   const WeatherScreen({super.key});
@@ -18,31 +20,10 @@ class WeatherScreen extends StatefulWidget {
 class _WeatherScreenState extends State<WeatherScreen> {
   late Future<Map<String, dynamic>> weather;
 
-  Future<Map<String, dynamic>> getCurrentWeather() async {
-    try {
-      String cityName = 'London';
-      final res = await http.get(
-        Uri.parse(
-          'https://api.openweathermap.org/data/2.5/forecast?q=$cityName&APPID=$openWeatherAPIKey',
-        ),
-      );
-
-      final data = jsonDecode(res.body);
-
-      if (data['cod'] != '200') {
-        throw 'An unexpected error occurred';
-      }
-
-      return data;
-    } catch (e) {
-      throw e.toString();
-    }
-  }
-
   @override
   void initState() {
     super.initState();
-    weather = getCurrentWeather();
+    context.read<WeatherBloc>().add(WeatherFetched());
   }
 
   @override
@@ -57,35 +38,22 @@ class _WeatherScreenState extends State<WeatherScreen> {
         actions: [
           IconButton(
             onPressed: () {
-              setState(() {
-                weather = getCurrentWeather();
-              });
+              context.read<WeatherBloc>().add(WeatherFetched());
             },
             icon: const Icon(Icons.refresh),
           ),
         ],
       ),
-      body: FutureBuilder(
-        future: weather,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+      body: BlocBuilder<WeatherBloc, WeatherState>(
+        builder: (context, state) {
+          if (state is WeatherFailure) {
+            return Center(child: Text(state.error));
+          }
+
+          if (state is! WeatherSuccess) {
             return const Center(child: CircularProgressIndicator.adaptive());
           }
-
-          if (snapshot.hasError) {
-            return Center(child: Text(snapshot.error.toString()));
-          }
-
-          final data = snapshot.data!;
-
-          final currentWeatherData = data['list'][0];
-
-          final currentTemp = currentWeatherData['main']['temp'];
-          final currentSky = currentWeatherData['weather'][0]['main'];
-          final currentPressure = currentWeatherData['main']['pressure'];
-          final currentWindSpeed = currentWeatherData['wind']['speed'];
-          final currentHumidity = currentWeatherData['main']['humidity'];
-
+          final data = state.weatherModel;
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -108,7 +76,7 @@ class _WeatherScreenState extends State<WeatherScreen> {
                           child: Column(
                             children: [
                               Text(
-                                '$currentTemp K',
+                                '${data.currentTemp} K',
                                 style: const TextStyle(
                                   fontSize: 32,
                                   fontWeight: FontWeight.bold,
@@ -116,14 +84,16 @@ class _WeatherScreenState extends State<WeatherScreen> {
                               ),
                               const SizedBox(height: 16),
                               Icon(
-                                currentSky == 'Clouds' || currentSky == 'Rain'
+                                // currentSky == 'Clouds' || currentSky == 'Rain'
+                                data.currentSky == 'Clouds' ||
+                                        data.currentSky == 'Rain'
                                     ? Icons.cloud
                                     : Icons.sunny,
                                 size: 64,
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                currentSky,
+                                data.currentSky,
                                 style: const TextStyle(fontSize: 20),
                               ),
                             ],
@@ -145,17 +115,22 @@ class _WeatherScreenState extends State<WeatherScreen> {
                     itemCount: 5,
                     scrollDirection: Axis.horizontal,
                     itemBuilder: (context, index) {
-                      final hourlyForecast = data['list'][index + 1];
-                      final hourlySky =
-                          data['list'][index + 1]['weather'][0]['main'];
-                      final hourlyTemp =
-                          hourlyForecast['main']['temp'].toString();
-                      final time = DateTime.parse(hourlyForecast['dt_txt']);
+                      final hourlyForecast = data.hourlyForecast;
+
                       return HourlyForecastItem(
-                        time: DateFormat.j().format(time),
-                        temperature: hourlyTemp,
+                        // time: DateFormat.j().format(time),
+                        time: DateFormat.j().format(
+                          hourlyForecast.elementAt(index).time,
+                        ),
+                        temperature:
+                            hourlyForecast
+                                .elementAt(index)
+                                .temperature
+                                .toString(),
                         icon:
-                            hourlySky == 'Clouds' || hourlySky == 'Rain'
+                            hourlyForecast.elementAt(index).sky == 'Clouds' ||
+                                    hourlyForecast.elementAt(index).sky ==
+                                        'Rain'
                                 ? Icons.cloud
                                 : Icons.sunny,
                       );
@@ -175,17 +150,17 @@ class _WeatherScreenState extends State<WeatherScreen> {
                     AdditionalInfoItem(
                       icon: Icons.water_drop,
                       label: 'Humidity',
-                      value: currentHumidity.toString(),
+                      value: data.currentHumidity.toString(),
                     ),
                     AdditionalInfoItem(
                       icon: Icons.air,
                       label: 'Wind Speed',
-                      value: currentWindSpeed.toString(),
+                      value: data.currentWindSpeed.toString(),
                     ),
                     AdditionalInfoItem(
                       icon: Icons.beach_access,
                       label: 'Pressure',
-                      value: currentPressure.toString(),
+                      value: data.currentPressure.toString(),
                     ),
                   ],
                 ),
